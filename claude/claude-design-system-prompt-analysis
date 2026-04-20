@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Designer Agent — System Prompt 深度分析</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        dark: { bg: '#0a0a0f', surface: '#12121a', surface2: '#1a1a26', border: '#2a2a3a' },
+        light: { bg: '#f8f9fb', surface: '#ffffff', surface2: '#f0f1f5', border: '#e2e4ea' },
+        accent: { DEFAULT: '#6c6cf0', light: '#5b5bd6', dark: '#8b8bf5' },
+        accent2: '#a78bfa',
+        mint: '#34d399',
+        tangerine: '#fb923c',
+        coral: '#f87171',
+        sky: '#22d3ee',
+        blush: '#f472b6',
+        lemon: '#fbbf24',
+      }
+    }
+  }
+}
+</script>
+<style>
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .anim-section { opacity: 0; animation: fadeInUp 0.6s ease-out forwards; }
+  .anim-section:nth-child(1) { animation-delay: 0s; }
+  .anim-section:nth-child(2) { animation-delay: 0.08s; }
+  .anim-section:nth-child(3) { animation-delay: 0.16s; }
+  .anim-section:nth-child(4) { animation-delay: 0.24s; }
+  .anim-section:nth-child(5) { animation-delay: 0.32s; }
+  .anim-section:nth-child(6) { animation-delay: 0.40s; }
+  .anim-section:nth-child(7) { animation-delay: 0.48s; }
+
+  .cap-card { position: relative; overflow: hidden; }
+  .cap-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+  .cap-card[data-color="accent"]::before { background: #6c6cf0; }
+  .cap-card[data-color="mint"]::before { background: #34d399; }
+  .cap-card[data-color="tangerine"]::before { background: #fb923c; }
+  .cap-card[data-color="sky"]::before { background: #22d3ee; }
+  .cap-card[data-color="blush"]::before { background: #f472b6; }
+  .cap-card[data-color="lemon"]::before { background: #fbbf24; }
+  .cap-card[data-color="coral"]::before { background: #f87171; }
+
+  .theme-toggle input:checked + .toggle-track { background: #6c6cf0; }
+  .theme-toggle input:checked + .toggle-track .toggle-dot { transform: translateX(20px); }
+
+  /* SVG theme-aware fill/stroke */
+  .svg-surface { fill: #12121a; transition: fill 0.3s; }
+  .svg-surface2 { fill: #1a1a26; transition: fill 0.3s; }
+  .svg-border { stroke: #2a2a3a; transition: stroke 0.3s; }
+  .svg-text-muted { fill: #8888a0; transition: fill 0.3s; }
+  .svg-text-main { fill: #e4e4ed; transition: fill 0.3s; }
+  .svg-text-dim { fill: #555; transition: fill 0.3s; }
+
+  html:not(.dark) .svg-surface { fill: #ffffff; }
+  html:not(.dark) .svg-surface2 { fill: #f0f1f5; }
+  html:not(.dark) .svg-border { stroke: #e2e4ea; }
+  html:not(.dark) .svg-text-muted { fill: #6b7280; }
+  html:not(.dark) .svg-text-main { fill: #1f2937; }
+  html:not(.dark) .svg-text-dim { fill: #9ca3af; }
+</style>
+</head>
+<body class="bg-dark-bg dark:bg-dark-bg bg-light-bg text-gray-800 dark:text-gray-200 font-sans leading-relaxed transition-colors duration-300 overflow-x-hidden">
+
+<!-- Side Nav -->
+<nav class="fixed right-5 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-2 max-md:hidden" id="sideNav">
+  <a href="#overview" class="group relative w-2.5 h-2.5 rounded-full bg-dark-border dark:bg-dark-border bg-light-border transition-all duration-300 hover:scale-125 hover:bg-accent dark:hover:bg-accent">
+    <span class="absolute right-5 top-1/2 -translate-y-1/2 bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface text-xs px-2.5 py-1 rounded-md whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity border border-dark-border dark:border-dark-border border-light-border">Overview</span>
+  </a>
+  <a href="#capabilities" class="group relative w-2.5 h-2.5 rounded-full bg-dark-border dark:bg-dark-border bg-light-border transition-all duration-300 hover:scale-125 hover:bg-accent dark:hover:bg-accent">
+    <span class="absolute right-5 top-1/2 -translate-y-1/2 bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface text-xs px-2.5 py-1 rounded-md whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity border border-dark-border dark:border-dark-border border-light-border">能力模块</span>
+  </a>
+  <a href="#workflow" class="group relative w-2.5 h-2.5 rounded-full bg-dark-border dark:bg-dark-border bg-light-border transition-all duration-300 hover:scale-125 hover:bg-accent dark:hover:bg-accent">
+    <span class="absolute right-5 top-1/2 -translate-y-1/2 bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface text-xs px-2.5 py-1 rounded-md whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity border border-dark-border dark:border-dark-border border-light-border">工作流程</span>
+  </a>
+  <a href="#architecture" class="group relative w-2.5 h-2.5 rounded-full bg-dark-border dark:bg-dark-border bg-light-border transition-all duration-300 hover:scale-125 hover:bg-accent dark:hover:bg-accent">
+    <span class="absolute right-5 top-1/2 -translate-y-1/2 bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface text-xs px-2.5 py-1 rounded-md whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity border border-dark-border dark:border-dark-border border-light-border">技术架构</span>
+  </a>
+  <a href="#philosophy" class="group relative w-2.5 h-2.5 rounded-full bg-dark-border dark:bg-dark-border bg-light-border transition-all duration-300 hover:scale-125 hover:bg-accent dark:hover:bg-accent">
+    <span class="absolute right-5 top-1/2 -translate-y-1/2 bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface text-xs px-2.5 py-1 rounded-md whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity border border-dark-border dark:border-dark-border border-light-border">设计哲学</span>
+  </a>
+  <a href="#security" class="group relative w-2.5 h-2.5 rounded-full bg-dark-border dark:bg-dark-border bg-light-border transition-all duration-300 hover:scale-125 hover:bg-accent dark:hover:bg-accent">
+    <span class="absolute right-5 top-1/2 -translate-y-1/2 bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface text-xs px-2.5 py-1 rounded-md whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity border border-dark-border dark:border-dark-border border-light-border">安全约束</span>
+  </a>
+</nav>
+
+<div class="max-w-6xl mx-auto px-6 md:px-10 py-12 md:py-16">
+
+  <!-- Header with theme toggle -->
+  <div class="flex justify-end mb-8">
+    <label class="theme-toggle relative inline-flex items-center cursor-pointer">
+      <input type="checkbox" id="themeSwitch" class="sr-only peer">
+      <div class="toggle-track w-11 h-6 rounded-full bg-light-border dark:bg-dark-border transition-colors duration-300 flex items-center px-0.5">
+        <div class="toggle-dot w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-300 flex items-center justify-center">
+          <svg id="sunIcon" class="w-3 h-3 text-amber-500 hidden" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="10" r="4"/><path d="M10 1v2m0 14v2m-7-9H1m18 0h-2m-3.3-6.7L14 4m-8 8l-1.7 1.7m0-9.4L6 6m8 8l1.7 1.7" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+          <svg id="moonIcon" class="w-3 h-3 text-accent" fill="currentColor" viewBox="0 0 20 20"><path d="M17 10A7 7 0 1 1 7.5 3a7 7 0 0 0 9.5 7z"/></svg>
+        </div>
+      </div>
+    </label>
+  </div>
+
+  <!-- Hero -->
+  <div class="text-center py-16 md:py-20 relative">
+    <div class="absolute -top-24 left-1/2 -translate-x-1/2 w-[600px] h-[400px] dark:bg-[radial-gradient(ellipse,rgba(108,108,240,0.12)_0%,transparent_70%)] bg-[radial-gradient(ellipse,rgba(108,108,240,0.06)_0%,transparent_70%)] pointer-events-none"></div>
+    <span class="inline-block px-4 py-1.5 border rounded-full text-xs tracking-wider text-accent2 dark:text-accent2 text-accent border-dark-border dark:border-dark-border border-light-border mb-6 relative">System Prompt Analysis</span>
+    <h1 class="text-4xl md:text-6xl font-bold tracking-tight mb-4 relative bg-gradient-to-br from-gray-200 dark:from-gray-200 from-gray-800 to-accent2 bg-clip-text text-transparent">AI Designer Agent</h1>
+    <p class="text-base md:text-lg text-gray-500 dark:text-gray-400 max-w-xl mx-auto relative">深度解析一个面向设计师的 AI Agent 系统提示词——能力架构、工作流、设计哲学与技术约束全景视图</p>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-12 md:mb-16">
+    <div class="bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-4 md:p-5 text-center transition-colors hover:border-accent">
+      <div class="text-2xl md:text-3xl font-bold text-accent2">~422</div>
+      <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-widest">总行数</div>
+    </div>
+    <div class="bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-4 md:p-5 text-center transition-colors hover:border-accent">
+      <div class="text-2xl md:text-3xl font-bold text-accent2">30+</div>
+      <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-widest">内置工具</div>
+    </div>
+    <div class="bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-4 md:p-5 text-center transition-colors hover:border-accent">
+      <div class="text-2xl md:text-3xl font-bold text-accent2">12</div>
+      <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-widest">Skills</div>
+    </div>
+    <div class="bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-4 md:p-5 text-center transition-colors hover:border-accent">
+      <div class="text-2xl md:text-3xl font-bold text-accent2">7</div>
+      <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-widest">Starter Components</div>
+    </div>
+    <div class="bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-4 md:p-5 text-center transition-colors hover:border-accent col-span-2 md:col-span-1">
+      <div class="text-2xl md:text-3xl font-bold text-accent2">6</div>
+      <div class="text-[11px] text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-widest">核心流程阶段</div>
+    </div>
+  </div>
+
+  <!-- Section 1: Overview -->
+  <section class="anim-section mb-16 md:mb-20 scroll-mt-10" id="overview">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="w-9 h-9 rounded-[10px] bg-accent text-white font-bold text-sm flex items-center justify-center shrink-0">1</div>
+      <h2 class="text-2xl md:text-3xl font-semibold">Overview — 全景概览</h2>
+    </div>
+    <p class="text-gray-500 dark:text-gray-400 text-sm mb-8 max-w-3xl">
+      这个 system prompt 定义了一个<strong class="text-gray-800 dark:text-gray-200">专业级 AI 设计 Agent</strong>，核心定位是作为设计师的 AI 助手（manager-junior 关系），
+      以 <code class="bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 px-2 py-0.5 rounded text-xs text-accent2 border border-dark-border dark:border-dark-border border-light-border font-mono">HTML</code> 为核心工具，产出从静态设计稿到交互原型、幻灯片、动画视频等多种形式的设计交付物。
+    </p>
+    <div class="dark:bg-gradient-to-br dark:from-[rgba(108,108,240,0.08)] dark:to-[rgba(167,139,250,0.04)] bg-gradient-to-br from-[rgba(108,108,240,0.05)] to-[rgba(167,139,250,0.02)] border border-accent/20 rounded-xl p-6 md:p-7">
+      <h4 class="text-sm text-accent2 mb-2 font-semibold">Key Insight — 核心洞察</h4>
+      <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+        该 Agent 的本质是一个<strong class="text-gray-800 dark:text-gray-200">「设计系统驱动的创意引擎」</strong>：它不是简单的代码生成器，而是一个完整的设计工作台。
+        Prompt 通过 <strong class="text-gray-800 dark:text-gray-200">角色定义 → 行为约束 → 工具链配置 → 质量门禁</strong> 四层结构，将 LLM 的能力收敛到「可交付的设计产出」这一单一目标上。
+        整个 prompt 的设计哲学可以概括为：<em>"约束越多，自由越有效"</em>。
+      </p>
+    </div>
+  </section>
+
+  <!-- Section 2: Capabilities -->
+  <section class="anim-section mb-16 md:mb-20 scroll-mt-10" id="capabilities">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="w-9 h-9 rounded-[10px] bg-accent text-white font-bold text-sm flex items-center justify-center shrink-0">2</div>
+      <h2 class="text-2xl md:text-3xl font-semibold">能力模块 — Capability Modules</h2>
+    </div>
+    <p class="text-gray-500 dark:text-gray-400 text-sm mb-8 max-w-3xl">
+      Agent 的能力被组织为 12 个独立 Skills，覆盖从设计探索到最终交付的完整链路。
+      每个 Skill 本质上是一组预定义的 prompt + 工具组合，按需加载。
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <!-- Card 1 -->
+      <div class="cap-card bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent" data-color="accent">
+        <div class="text-2xl mb-3">🎨</div>
+        <div class="text-sm font-semibold mb-1">设计探索</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 italic mb-2">Frontend Design / Wireframe</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">从零开始探索视觉方向，产出 wireframe 或 hi-fi 设计变体，支持 A/B 风格对比</div>
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">design_canvas</span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">wireframe</span>
+        </div>
+      </div>
+      <!-- Card 2 -->
+      <div class="cap-card bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent" data-color="mint">
+        <div class="text-2xl mb-3">📱</div>
+        <div class="text-sm font-semibold mb-1">交互原型</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 italic mb-2">Interactive Prototype</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">构建可点击的 hi-fi 原型，支持 React + Babel 内联 JSX，可调参数（Tweaks）</div>
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">React 18</span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">Babel</span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">Tweaks</span>
+        </div>
+      </div>
+      <!-- Card 3 -->
+      <div class="cap-card bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent" data-color="tangerine">
+        <div class="text-2xl mb-3">📽️</div>
+        <div class="text-sm font-semibold mb-1">幻灯片 / Deck</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 italic mb-2">Make a Deck</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">基于 HTML 的演示文稿，支持 speaker notes、localStorage 持久化、键盘导航</div>
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">deck_stage</span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">speaker notes</span>
+        </div>
+      </div>
+      <!-- Card 4 -->
+      <div class="cap-card bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent" data-color="sky">
+        <div class="text-2xl mb-3">🎬</div>
+        <div class="text-sm font-semibold mb-1">动画视频</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 italic mb-2">Animated Video</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">基于 Stage + Sprite 时间轴引擎的 motion design，支持 scrubber 和 play/pause 控制</div>
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">animations.jsx</span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">Easing</span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">Sprite</span>
+        </div>
+      </div>
+      <!-- Card 5 -->
+      <div class="cap-card bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent" data-color="blush">
+        <div class="text-2xl mb-3">🔧</div>
+        <div class="text-sm font-semibold mb-1">Tweaks 调参</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 italic mb-2">Make Tweakable</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">在原型内嵌入可调参数面板，用户可实时切换颜色/字体/布局等设计变体</div>
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">postMessage</span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">localStorage</span>
+        </div>
+      </div>
+      <!-- Card 6 -->
+      <div class="cap-card bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent" data-color="lemon">
+        <div class="text-2xl mb-3">📊</div>
+        <div class="text-sm font-semibold mb-1">PPTX 导出</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 italic mb-2">Export as PPTX</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">两种模式：editable（原生形状/文本）或 screenshots（像素级截图），支持 speaker notes</div>
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">gen_pptx</span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">DOM capture</span>
+        </div>
+      </div>
+      <!-- Card 7 -->
+      <div class="cap-card bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent" data-color="coral">
+        <div class="text-2xl mb-3">📄</div>
+        <div class="text-sm font-semibold mb-1">PDF 导出</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 italic mb-2">Save as PDF</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">在新标签页打开 HTML 并触发浏览器打印，支持每页一幻灯片</div>
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">open_for_print</span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">Cmd+P</span>
+        </div>
+      </div>
+      <!-- Card 8 -->
+      <div class="cap-card bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent" data-color="mint">
+        <div class="text-2xl mb-3">📦</div>
+        <div class="text-sm font-semibold mb-1">离线 HTML</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 italic mb-2">Save as Standalone HTML</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">将 HTML + 所有资源内联打包为单个自包含文件，可离线运行</div>
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">super_inline_html</span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">bundler</span>
+        </div>
+      </div>
+      <!-- Card 9 -->
+      <div class="cap-card bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent" data-color="accent">
+        <div class="text-2xl mb-3">🖼️</div>
+        <div class="text-sm font-semibold mb-1">Canva 导出</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 italic mb-2">Send to Canva</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">导出为 Canva 可编辑格式，需要 public URL + 临时签名</div>
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">get_public_file_url</span>
+        </div>
+      </div>
+      <!-- Card 10 -->
+      <div class="cap-card bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent" data-color="tangerine">
+        <div class="text-2xl mb-3">🎨</div>
+        <div class="text-sm font-semibold mb-1">设计系统创建</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 italic mb-2">Create Design System</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">从零构建完整的 design system / UI kit，包含 color tokens、spacing、typography 等</div>
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">tokens</span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">register_assets</span>
+        </div>
+      </div>
+      <!-- Card 11 -->
+      <div class="cap-card bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent" data-color="sky">
+        <div class="text-2xl mb-3">🤝</div>
+        <div class="text-sm font-semibold mb-1">开发者交付</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 italic mb-2">Handoff to Claude Code</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">将设计产出打包为开发者可消费的格式，实现设计到代码的衔接</div>
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">handoff</span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">dev package</span>
+        </div>
+      </div>
+      <!-- Card 12 -->
+      <div class="cap-card bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent" data-color="blush">
+        <div class="text-2xl mb-3">🔗</div>
+        <div class="text-sm font-semibold mb-1">GitHub 集成</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 italic mb-2">GitHub Integration</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">连接 GitHub 仓库，探索项目结构，导入组件和样式作为设计参考</div>
+        <div class="flex flex-wrap gap-1.5 mt-3">
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">github_get_tree</span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 text-gray-400 border border-dark-border dark:border-dark-border border-light-border">github_import</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 3: Workflow -->
+  <section class="anim-section mb-16 md:mb-20 scroll-mt-10" id="workflow">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="w-9 h-9 rounded-[10px] bg-accent text-white font-bold text-sm flex items-center justify-center shrink-0">3</div>
+      <h2 class="text-2xl md:text-3xl font-semibold">工作流程 — Workflow & Lifecycle</h2>
+    </div>
+    <p class="text-gray-500 dark:text-gray-400 text-sm mb-8 max-w-3xl">
+      Agent 遵循严格的 6 阶段工作流。每一步都有明确的输入/输出和门禁条件，
+      体现了 <em>"design context first, execution second"</em> 的核心理念。
+    </p>
+
+    <div class="bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-2xl p-6 md:p-10 overflow-x-auto">
+      <div class="flex items-start min-w-[800px] justify-center">
+        <!-- Step 1 -->
+        <div class="flex flex-col items-center w-28 shrink-0">
+          <div class="w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg text-white mb-3 relative" style="background:#6c6cf0">①
+            <span class="absolute -bottom-5 text-[10px] font-normal text-gray-500 dark:text-gray-400 whitespace-nowrap">Step 1</span>
+          </div>
+          <div class="text-xs font-semibold text-center mt-2">需求理解</div>
+          <div class="text-[10px] text-gray-500 dark:text-gray-400 text-center max-w-[120px] mt-1">使用 questions_v2 收集设计意图、受众、约束条件</div>
+        </div>
+        <div class="flex items-center pt-3.5 text-accent text-xl shrink-0 mx-1">→</div>
+        <!-- Step 2 -->
+        <div class="flex flex-col items-center w-28 shrink-0">
+          <div class="w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg text-white mb-3 relative" style="background:#34d399">②
+            <span class="absolute -bottom-5 text-[10px] font-normal text-gray-500 dark:text-gray-400 whitespace-nowrap">Step 2</span>
+          </div>
+          <div class="text-xs font-semibold text-center mt-2">资源探索</div>
+          <div class="text-[10px] text-gray-500 dark:text-gray-400 text-center max-w-[120px] mt-1">读取 design system、UI kit、品牌资产；GitHub 导入</div>
+        </div>
+        <div class="flex items-center pt-3.5 text-accent text-xl shrink-0 mx-1">→</div>
+        <!-- Step 3 -->
+        <div class="flex flex-col items-center w-28 shrink-0">
+          <div class="w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg text-white mb-3 relative" style="background:#fb923c">③
+            <span class="absolute -bottom-5 text-[10px] font-normal text-gray-500 dark:text-gray-400 whitespace-nowrap">Step 3</span>
+          </div>
+          <div class="text-xs font-semibold text-center mt-2">规划 + Todo</div>
+          <div class="text-[10px] text-gray-500 dark:text-gray-400 text-center max-w-[120px] mt-1">制定设计计划，建立 todo list，确定变体方向</div>
+        </div>
+        <div class="flex items-center pt-3.5 text-accent text-xl shrink-0 mx-1">→</div>
+        <!-- Step 4 -->
+        <div class="flex flex-col items-center w-28 shrink-0">
+          <div class="w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg text-white mb-3 relative" style="background:#22d3ee">④
+            <span class="absolute -bottom-5 text-[10px] font-normal text-gray-500 dark:text-gray-400 whitespace-nowrap">Step 4</span>
+          </div>
+          <div class="text-xs font-semibold text-center mt-2">构建</div>
+          <div class="text-[10px] text-gray-500 dark:text-gray-400 text-center max-w-[120px] mt-1">搭建目录结构，复制资源，编写 HTML/React 组件</div>
+        </div>
+        <div class="flex items-center pt-3.5 text-accent text-xl shrink-0 mx-1">→</div>
+        <!-- Step 5 -->
+        <div class="flex flex-col items-center w-28 shrink-0">
+          <div class="w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg text-white mb-3 relative" style="background:#f472b6">⑤
+            <span class="absolute -bottom-5 text-[10px] font-normal text-gray-500 dark:text-gray-400 whitespace-nowrap">Step 5</span>
+          </div>
+          <div class="text-xs font-semibold text-center mt-2">验证 + 交付</div>
+          <div class="text-[10px] text-gray-500 dark:text-gray-400 text-center max-w-[120px] mt-1">done() 展示 + fork_verifier_agent 后台质检</div>
+        </div>
+        <div class="flex items-center pt-3.5 text-accent text-xl shrink-0 mx-1">→</div>
+        <!-- Step 6 -->
+        <div class="flex flex-col items-center w-28 shrink-0">
+          <div class="w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg text-white mb-3 relative" style="background:#fbbf24">⑥
+            <span class="absolute -bottom-5 text-[10px] font-normal text-gray-500 dark:text-gray-400 whitespace-nowrap">Step 6</span>
+          </div>
+          <div class="text-xs font-semibold text-center mt-2">极简总结</div>
+          <div class="text-[10px] text-gray-500 dark:text-gray-400 text-center max-w-[120px] mt-1">仅输出 caveats 和 next steps，不超过 2 句</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dark:bg-gradient-to-br dark:from-[rgba(108,108,240,0.08)] dark:to-[rgba(167,139,250,0.04)] bg-gradient-to-br from-[rgba(108,108,240,0.05)] to-[rgba(167,139,250,0.02)] border border-accent/20 rounded-xl p-6 md:p-7 mt-10">
+      <h4 class="text-sm text-accent2 mb-2 font-semibold">流程设计洞察</h4>
+      <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+        <strong class="text-gray-800 dark:text-gray-200">问题前置</strong>：Step 1 强制使用 <code class="bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 px-1.5 py-0.5 rounded text-xs text-accent2 border border-dark-border dark:border-dark-border border-light-border font-mono">questions_v2</code> 至少收集 10+ 个问题——这在 agent prompt 中极为罕见。
+        大多数 agent 倾向于「尽快行动」，而这个 prompt 明确要求「先理解，再动手」。
+        <br><br>
+        <strong class="text-gray-800 dark:text-gray-200">上下文管理</strong>：通过 <code class="bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 px-1.5 py-0.5 rounded text-xs text-accent2 border border-dark-border dark:border-dark-border border-light-border font-mono">snip</code> 工具实现会话级上下文裁剪，agent 被鼓励在工作过程中
+        持续「修剪」不再需要的历史，以保持长对话中的有效上下文窗口。
+      </p>
+    </div>
+  </section>
+
+  <!-- Section 4: Architecture -->
+  <section class="anim-section mb-16 md:mb-20 scroll-mt-10" id="architecture">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="w-9 h-9 rounded-[10px] bg-accent text-white font-bold text-sm flex items-center justify-center shrink-0">4</div>
+      <h2 class="text-2xl md:text-3xl font-semibold">技术架构 — Technical Architecture</h2>
+    </div>
+    <p class="text-gray-500 dark:text-gray-400 text-sm mb-8 max-w-3xl">
+      Agent 的工具链由 30+ 个 function 组成，按照职责可分为 5 大类。
+      整个系统运行在一个基于 webview 的沙箱环境中，通过 postMessage 与宿主应用通信。
+    </p>
+
+    <div class="bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-2xl p-6 md:p-10 text-center overflow-x-auto">
+      <svg viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg" class="w-full max-w-4xl mx-auto" style="font-family:-apple-system,sans-serif">
+        <rect x="30" y="20" width="840" height="80" rx="12" class="svg-surface2" class="svg-border" stroke-width="1"/>
+        <text x="450" y="50" text-anchor="middle" class="svg-text-muted" font-size="12" font-weight="600" letter-spacing="2">HOST LAYER — 宿主应用</text>
+        <text x="450" y="75" text-anchor="middle" class="svg-text-main" font-size="13">Toolbar (Tweaks Toggle) · Tab Bar · Asset Review Pane · Speaker Notes Renderer</text>
+        <line x1="450" y1="100" x2="450" y2="140" stroke="#6c6cf0" stroke-width="2" stroke-dasharray="4,4"/>
+        <text x="530" y="125" fill="#6c6cf0" font-size="11">postMessage bidirectional</text>
+        <rect x="30" y="140" width="840" height="60" rx="12" class="svg-surface2" stroke="#6c6cf0" stroke-width="1.5"/>
+        <text x="450" y="170" text-anchor="middle" fill="#a78bfa" font-size="13" font-weight="600">AI AGENT CORE — LLM + System Prompt + Skills</text>
+        <text x="450" y="190" text-anchor="middle" class="svg-text-muted" font-size="11">Role: Expert Designer · Runtime: React 18 + Babel · Engine: HTML-first output</text>
+        <line x1="450" y1="200" x2="450" y2="230" class="svg-border" stroke-width="1"/>
+        <!-- File Ops -->
+        <rect x="30" y="230" width="155" height="270" rx="10" class="svg-surface" stroke="#34d399" stroke-width="1"/>
+        <text x="107" y="255" text-anchor="middle" fill="#34d399" font-size="11" font-weight="600">文件操作</text>
+        <text x="107" y="280" text-anchor="middle" class="svg-text-muted" font-size="10">read_file</text>
+        <text x="107" y="298" text-anchor="middle" class="svg-text-muted" font-size="10">write_file</text>
+        <text x="107" y="316" text-anchor="middle" class="svg-text-muted" font-size="10">str_replace_edit</text>
+        <text x="107" y="334" text-anchor="middle" class="svg-text-muted" font-size="10">copy_files</text>
+        <text x="107" y="352" text-anchor="middle" class="svg-text-muted" font-size="10">delete_file</text>
+        <text x="107" y="370" text-anchor="middle" class="svg-text-muted" font-size="10">list_files</text>
+        <text x="107" y="395" text-anchor="middle" class="svg-text-dim" font-size="10">grep</text>
+        <text x="107" y="413" text-anchor="middle" class="svg-text-dim" font-size="10">register_assets</text>
+        <text x="107" y="431" text-anchor="middle" class="svg-text-dim" font-size="10">unregister_assets</text>
+        <text x="107" y="455" text-anchor="middle" class="svg-text-dim" font-size="10">rename_project</text>
+        <text x="107" y="473" text-anchor="middle" class="svg-text-dim" font-size="10">save_as_template</text>
+        <!-- Preview & Render -->
+        <rect x="200" y="230" width="155" height="270" rx="10" class="svg-surface" stroke="#6c6cf0" stroke-width="1"/>
+        <text x="277" y="255" text-anchor="middle" fill="#6c6cf0" font-size="11" font-weight="600">预览 & 渲染</text>
+        <text x="277" y="280" text-anchor="middle" class="svg-text-muted" font-size="10">show_html</text>
+        <text x="277" y="298" text-anchor="middle" class="svg-text-muted" font-size="10">show_to_user</text>
+        <text x="277" y="316" text-anchor="middle" class="svg-text-muted" font-size="10">done</text>
+        <text x="277" y="340" text-anchor="middle" class="svg-text-muted" font-size="10">view_image</text>
+        <text x="277" y="358" text-anchor="middle" class="svg-text-muted" font-size="10">image_metadata</text>
+        <text x="277" y="382" text-anchor="middle" class="svg-text-dim" font-size="10">get_webview_logs</text>
+        <text x="277" y="400" text-anchor="middle" class="svg-text-dim" font-size="10">save_screenshot</text>
+        <text x="277" y="418" text-anchor="middle" class="svg-text-dim" font-size="10">multi_screenshot</text>
+        <text x="277" y="442" text-anchor="middle" class="svg-text-dim" font-size="10">eval_js</text>
+        <text x="277" y="460" text-anchor="middle" class="svg-text-dim" font-size="10">eval_js_user_view</text>
+        <text x="277" y="478" text-anchor="middle" class="svg-text-dim" font-size="10">sleep</text>
+        <!-- Export & Delivery -->
+        <rect x="370" y="230" width="155" height="270" rx="10" class="svg-surface" stroke="#fb923c" stroke-width="1"/>
+        <text x="447" y="255" text-anchor="middle" fill="#fb923c" font-size="11" font-weight="600">导出 & 交付</text>
+        <text x="447" y="280" text-anchor="middle" class="svg-text-muted" font-size="10">gen_pptx</text>
+        <text x="447" y="298" text-anchor="middle" class="svg-text-muted" font-size="10">open_for_print</text>
+        <text x="447" y="316" text-anchor="middle" class="svg-text-muted" font-size="10">super_inline_html</text>
+        <text x="447" y="340" text-anchor="middle" class="svg-text-muted" font-size="10">present_fs_download</text>
+        <text x="447" y="358" text-anchor="middle" class="svg-text-muted" font-size="10">get_public_file_url</text>
+        <text x="447" y="388" text-anchor="middle" class="svg-text-dim" font-size="10">fork_verifier_agent</text>
+        <text x="447" y="406" text-anchor="middle" class="svg-text-dim" font-size="10">copy_starter_comp</text>
+        <!-- Interaction & Context -->
+        <rect x="540" y="230" width="155" height="270" rx="10" class="svg-surface" stroke="#f472b6" stroke-width="1"/>
+        <text x="617" y="255" text-anchor="middle" fill="#f472b6" font-size="11" font-weight="600">交互 & 上下文</text>
+        <text x="617" y="280" text-anchor="middle" class="svg-text-muted" font-size="10">questions_v2</text>
+        <text x="617" y="298" text-anchor="middle" class="svg-text-muted" font-size="10">update_todos</text>
+        <text x="617" y="316" text-anchor="middle" class="svg-text-muted" font-size="10">invoke_skill</text>
+        <text x="617" y="340" text-anchor="middle" class="svg-text-muted" font-size="10">snip</text>
+        <text x="617" y="364" text-anchor="middle" class="svg-text-muted" font-size="10">run_script</text>
+        <text x="617" y="388" text-anchor="middle" class="svg-text-dim" font-size="10">web_search</text>
+        <text x="617" y="406" text-anchor="middle" class="svg-text-dim" font-size="10">web_fetch</text>
+        <!-- External -->
+        <rect x="710" y="230" width="160" height="270" rx="10" class="svg-surface" stroke="#22d3ee" stroke-width="1"/>
+        <text x="790" y="255" text-anchor="middle" fill="#22d3ee" font-size="11" font-weight="600">外部集成</text>
+        <text x="790" y="280" text-anchor="middle" class="svg-text-muted" font-size="10">connect_github</text>
+        <text x="790" y="298" text-anchor="middle" class="svg-text-muted" font-size="10">github_get_tree</text>
+        <text x="790" y="316" text-anchor="middle" class="svg-text-muted" font-size="10">github_import_files</text>
+        <text x="790" y="334" text-anchor="middle" class="svg-text-muted" font-size="10">github_read_file</text>
+        <text x="790" y="358" text-anchor="middle" class="svg-text-muted" font-size="10">github_list_repos</text>
+        <text x="790" y="388" text-anchor="middle" class="svg-text-dim" font-size="10">window.claude</text>
+        <text x="790" y="406" text-anchor="middle" class="svg-text-dim" font-size="10">.complete()</text>
+        <line x1="450" y1="500" x2="450" y2="515" class="svg-border" stroke-width="1"/>
+        <text x="450" y="515" text-anchor="middle" class="svg-text-dim" font-size="10">Sandbox: opaque origin · no external fetch · 30s timeout</text>
+      </svg>
+    </div>
+
+    <div class="dark:bg-gradient-to-br dark:from-[rgba(108,108,240,0.08)] dark:to-[rgba(167,139,250,0.04)] bg-gradient-to-br from-[rgba(108,108,240,0.05)] to-[rgba(167,139,250,0.02)] border border-accent/20 rounded-xl p-6 md:p-7 mt-10">
+      <h4 class="text-sm text-accent2 mb-2 font-semibold">架构设计洞察</h4>
+      <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+        <strong class="text-gray-800 dark:text-gray-200">HTML-first 策略</strong>：所有产出物最终都收敛为 HTML，然后通过不同的导出路径（PPTX、PDF、Canva、standalone）
+        衍生出其他格式。这种「single source of truth」的架构极大简化了渲染管线的复杂度。
+        <br><br>
+        <strong class="text-gray-800 dark:text-gray-200">双 iframe 架构</strong>：Agent 拥有自己的预览 iframe（<code class="bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 px-1.5 py-0.5 rounded text-xs text-accent2 border border-dark-border dark:border-dark-border border-light-border font-mono">show_html</code>），
+        同时可以通过 <code class="bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 px-1.5 py-0.5 rounded text-xs text-accent2 border border-dark-border dark:border-dark-border border-light-border font-mono">eval_js_user_view</code> 读取用户 iframe 的实时状态。
+        这种隔离确保了 Agent 的调试操作不会干扰用户体验。
+      </p>
+    </div>
+  </section>
+
+  <!-- Section 5: Philosophy -->
+  <section class="anim-section mb-16 md:mb-20 scroll-mt-10" id="philosophy">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="w-9 h-9 rounded-[10px] bg-accent text-white font-bold text-sm flex items-center justify-center shrink-0">5</div>
+      <h2 class="text-2xl md:text-3xl font-semibold">设计哲学 — Design Philosophy & Constraints</h2>
+    </div>
+    <p class="text-gray-500 dark:text-gray-400 text-sm mb-8 max-w-3xl">
+      这个 prompt 最有趣的部分不是工具定义，而是它对 AI 设计行为的<strong class="text-gray-800 dark:text-gray-200">行为约束</strong>。
+      通过大量 DO / DON'T 指令，它试图弥补 LLM 在设计审美上的天然缺陷。
+    </p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- DO -->
+      <div class="bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border border-l-[3px] border-l-mint rounded-xl p-6 transition-colors hover:border-accent">
+        <div class="text-xs font-semibold uppercase tracking-widest text-mint mb-3">✓ DO — 应该做的</div>
+        <div class="space-y-2 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+          <p><strong class="text-gray-800 dark:text-gray-200">Context-driven design</strong> — 必须先获取 design system / UI kit / 截图等设计上下文，再开始设计。从零开始是<strong class="text-gray-800 dark:text-gray-200">最后手段</strong>。</p>
+          <p><strong class="text-gray-800 dark:text-gray-200">Give 3+ variations</strong> — 每次设计探索都应提供 3 个以上变体，跨越不同维度（布局、色彩、交互、视觉风格）。</p>
+          <p><strong class="text-gray-800 dark:text-gray-200">Ask many questions</strong> — 使用 <code class="bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 px-1.5 py-0.5 rounded text-[11px] text-accent2 border border-dark-border dark:border-dark-border border-light-border font-mono">questions_v2</code> 至少 10 个问题，确认受众、品牌、变体偏好、设计方向。</p>
+          <p><strong class="text-gray-800 dark:text-gray-200">Use starter components</strong> — 使用预置组件（<code class="bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 px-1.5 py-0.5 rounded text-[11px] text-accent2 border border-dark-border dark:border-dark-border border-light-border font-mono">deck_stage</code>、<code class="bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 px-1.5 py-0.5 rounded text-[11px] text-accent2 border border-dark-border dark:border-dark-border border-light-border font-mono">ios_frame</code> 等），不手绘设备边框或幻灯片壳。</p>
+          <p><strong class="text-gray-800 dark:text-gray-200">Show work early</strong> — 先展示骨架和占位符，快速获得反馈，再迭代细节。</p>
+          <p><strong class="text-gray-800 dark:text-gray-200">Match existing visual vocabulary</strong> — 添加新 UI 时，先观察现有视觉语言（颜色、间距、阴影、动画），保持一致性。</p>
+          <p><strong class="text-gray-800 dark:text-gray-200">Use oklch for colors</strong> — 需要新颜色时，使用 oklch 色彩空间定义和谐色，而非凭空发明。</p>
+          <p><strong class="text-gray-800 dark:text-gray-200">Split large files</strong> — 单文件不超过 1000 行，拆分为多个 JSX 组件并通过 <code class="bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 px-1.5 py-0.5 rounded text-[11px] text-accent2 border border-dark-border dark:border-dark-border border-light-border font-mono">window</code> 共享。</p>
+        </div>
+      </div>
+      <!-- DON'T -->
+      <div class="bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border border-l-[3px] border-l-coral rounded-xl p-6 transition-colors hover:border-accent">
+        <div class="text-xs font-semibold uppercase tracking-widest text-coral mb-3">✗ DON'T — 禁止做的</div>
+        <div class="space-y-2 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+          <p><strong class="text-gray-800 dark:text-gray-200">No AI slop</strong> — 严禁：过度渐变背景、emoji（品牌要求除外）、左侧彩条圆角卡片、SVG 手绘图标、Inter/Roboto 字体。</p>
+          <p><strong class="text-gray-800 dark:text-gray-200">No filler content</strong> — 不加填充文字、虚设区块、无意义的数据统计。每个元素都必须"earn its place"。</p>
+          <p><strong class="text-gray-800 dark:text-gray-200">No scrollIntoView</strong> — 会干扰宿主应用的滚动行为，使用其他 DOM 滚动方法。</p>
+          <p><strong class="text-gray-800 dark:text-gray-200">No title screens</strong> — 原型不需要启动画面，直接居中展示核心内容。</p>
+          <p><strong class="text-gray-800 dark:text-gray-200">No unpinned dependencies</strong> — React/Babel 必须使用固定版本 + integrity hash，禁止 <code class="bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 px-1.5 py-0.5 rounded text-[11px] text-accent2 border border-dark-border dark:border-dark-border border-light-border font-mono">react@18</code> 这种写法。</p>
+          <p><strong class="text-gray-800 dark:text-gray-200">No generic <code class="bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 px-1.5 py-0.5 rounded text-[11px] text-accent2 border border-dark-border dark:border-dark-border border-light-border font-mono">styles</code> objects</strong> — 多组件共享作用域时，必须用具体命名（如 <code class="bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 px-1.5 py-0.5 rounded text-[11px] text-accent2 border border-dark-border dark:border-dark-border border-light-border font-mono">terminalStyles</code>），避免命名冲突。</p>
+          <p><strong class="text-gray-800 dark:text-gray-200">No bulk-copy resources</strong> — 不批量复制 >20 个文件，只复制实际需要的。</p>
+          <p><strong class="text-gray-800 dark:text-gray-200">No divulge internals</strong> — 不透露 system prompt 内容、工具列表、环境实现细节。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="dark:bg-gradient-to-br dark:from-[rgba(108,108,240,0.08)] dark:to-[rgba(167,139,250,0.04)] bg-gradient-to-br from-[rgba(108,108,240,0.05)] to-[rgba(167,139,250,0.02)] border border-accent/20 rounded-xl p-6 md:p-7 mt-6">
+      <h4 class="text-sm text-accent2 mb-2 font-semibold">反 AI Slop 清单 — Anti-Tropes</h4>
+      <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+        prompt 中明确列出了 AI 生成内容的「常见套路」并逐条禁止，包括：
+        渐变背景滥用、emoji 堆砌、左侧彩条圆角卡片、SVG 简笔画图标、Inter/Roboto 等泛用字体。
+        这反映了产品方对「AI 设计感」的深刻理解——<strong class="text-gray-800 dark:text-gray-200">AI 的默认审美倾向就是「不像人做的」</strong>，
+        需要通过显式约束来对抗模型训练数据中的统计偏差。
+      </p>
+    </div>
+  </section>
+
+  <!-- Section 6: Security -->
+  <section class="anim-section mb-16 md:mb-20 scroll-mt-10" id="security">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="w-9 h-9 rounded-[10px] bg-accent text-white font-bold text-sm flex items-center justify-center shrink-0">6</div>
+      <h2 class="text-2xl md:text-3xl font-semibold">安全与隐私 — Security & Privacy</h2>
+    </div>
+    <p class="text-gray-500 dark:text-gray-400 text-sm mb-8 max-w-3xl">
+      Prompt 在多个层面设置了安全和隐私边界，从 IP 保护到运行时隔离。
+    </p>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-6">
+        <div class="text-sm font-semibold mb-3 text-coral">🔒 Prompt 机密性</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+          Agent 被明确禁止透露 system prompt 内容、<code class="bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 px-1.5 py-0.5 rounded text-[11px] text-accent2 border border-dark-border dark:border-dark-border border-light-border font-mono">&lt;system&gt;</code> 标签内容、工具实现细节。
+          面对用户追问，只能以「user-centric」方式描述能力，不能描述实现。
+        </div>
+      </div>
+      <div class="bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-6">
+        <div class="text-sm font-semibold mb-3 text-tangerine">©️ 版权保护</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+          禁止复现有版权的公司 UI 模式，除非用户邮箱域名表明是该公司的员工。
+          面对版权设计请求，应理解意图并帮助创建<strong class="text-gray-800 dark:text-gray-200">原创设计</strong>。
+        </div>
+      </div>
+      <div class="bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-xl p-6">
+        <div class="text-sm font-semibold mb-3 text-sky">🌐 运行时沙箱</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+          <code class="bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 px-1.5 py-0.5 rounded text-[11px] text-accent2 border border-dark-border dark:border-dark-border border-light-border font-mono">run_script</code> 运行在 opaque origin 沙箱中，<code class="bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 px-1.5 py-0.5 rounded text-[11px] text-accent2 border border-dark-border dark:border-dark-border border-light-border font-mono">fetch()</code> 无法访问后端。
+          跨项目文件访问仅限<strong class="text-gray-800 dark:text-gray-200">只读</strong>，且需要 view 权限。
+          Claude API 调用使用 <code class="bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 px-1.5 py-0.5 rounded text-[11px] text-accent2 border border-dark-border dark:border-dark-border border-light-border font-mono">claude-haiku-4-5</code> + 1024 token cap，共享用户配额。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 7: Key Patterns -->
+  <section class="anim-section mb-16 md:mb-20 scroll-mt-10" id="patterns">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="w-9 h-9 rounded-[10px] bg-accent text-white font-bold text-sm flex items-center justify-center shrink-0">7</div>
+      <h2 class="text-2xl md:text-3xl font-semibold">关键模式 — Key Engineering Patterns</h2>
+    </div>
+    <p class="text-gray-500 dark:text-gray-400 text-sm mb-8 max-w-3xl">
+      从工程角度，这个 prompt 展示了若干值得关注的 Agent 设计模式。
+    </p>
+
+    <div class="bg-dark-surface dark:bg-dark-surface bg-light-surface border border-dark-border dark:border-dark-border border-light-border rounded-2xl overflow-hidden">
+      <div class="grid md:grid-cols-[200px_1fr]">
+        <!-- Left column -->
+        <div class="bg-dark-surface2 dark:bg-dark-surface2 bg-light-surface2 md:border-r border-dark-border dark:border-dark-border border-light-border">
+          <div class="px-4 py-3 text-[11px] font-semibold uppercase tracking-widest border-b border-dark-border dark:border-dark-border border-light-border">模式</div>
+          <div class="flex items-center gap-2 px-4 py-3 text-xs border-b border-dark-border dark:border-dark-border border-light-border"><div class="w-2 h-2 rounded-full shrink-0" style="background:#6c6cf0"></div>Skill Chaining</div>
+          <div class="flex items-center gap-2 px-4 py-3 text-xs border-b border-dark-border dark:border-dark-border border-light-border"><div class="w-2 h-2 rounded-full shrink-0" style="background:#34d399"></div>Context Window Mgmt</div>
+          <div class="flex items-center gap-2 px-4 py-3 text-xs border-b border-dark-border dark:border-dark-border border-light-border"><div class="w-2 h-2 rounded-full shrink-0" style="background:#fb923c"></div>Dual-iframe Isolation</div>
+          <div class="flex items-center gap-2 px-4 py-3 text-xs border-b border-dark-border dark:border-dark-border border-light-border"><div class="w-2 h-2 rounded-full shrink-0" style="background:#22d3ee"></div>Convention over Config</div>
+          <div class="flex items-center gap-2 px-4 py-3 text-xs border-b border-dark-border dark:border-dark-border border-light-border"><div class="w-2 h-2 rounded-full shrink-0" style="background:#f472b6"></div>Verification Pipeline</div>
+          <div class="flex items-center gap-2 px-4 py-3 text-xs border-b border-dark-border dark:border-dark-border border-light-border"><div class="w-2 h-2 rounded-full shrink-0" style="background:#fbbf24"></div>Declarative Tweaks</div>
+          <div class="flex items-center gap-2 px-4 py-3 text-xs"><div class="w-2 h-2 rounded-full shrink-0" style="background:#f87171"></div>Progressive Disclosure</div>
+        </div>
+        <!-- Right column -->
+        <div>
+          <div class="px-4 py-3 text-[11px] font-semibold uppercase tracking-widest border-b border-dark-border dark:border-dark-border border-light-border">说明</div>
+          <div class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 border-b border-dark-border dark:border-dark-border border-light-border"><strong class="text-gray-800 dark:text-gray-200">Skills 按需加载</strong>：invoke_skill 仅在需要时将 prompt 注入上下文，避免全局 prompt 膨胀</div>
+          <div class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 border-b border-dark-border dark:border-dark-border border-light-border"><strong class="text-gray-800 dark:text-gray-200">snip 工具</strong>：延迟执行的上下文裁剪机制，标记后批量清除已完成的对话片段</div>
+          <div class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 border-b border-dark-border dark:border-dark-border border-light-border"><strong class="text-gray-800 dark:text-gray-200">Agent iframe vs User iframe</strong>：调试和预览分离，互不干扰</div>
+          <div class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 border-b border-dark-border dark:border-dark-border border-light-border"><strong class="text-gray-800 dark:text-gray-200">Starter Components</strong>：预置脚手架（deck_stage、ios_frame 等）统一交付标准</div>
+          <div class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 border-b border-dark-border dark:border-dark-border border-light-border"><strong class="text-gray-800 dark:text-gray-200">done → fork_verifier_agent</strong>：交付后自动触发后台质检子 agent，异步报告问题</div>
+          <div class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 border-b border-dark-border dark:border-dark-border border-light-border"><strong class="text-gray-800 dark:text-gray-200">TWEAK_DEFAULTS markers</strong>：通过注释标记实现宿主级配置持久化</div>
+          <div class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400"><strong class="text-gray-800 dark:text-gray-200">questions_v2</strong>：结构化问题表单（slider/svg-options/text-options），渐进式收集需求</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dark:bg-gradient-to-br dark:from-[rgba(108,108,240,0.08)] dark:to-[rgba(167,139,250,0.04)] bg-gradient-to-br from-[rgba(108,108,240,0.05)] to-[rgba(167,139,250,0.02)] border border-accent/20 rounded-xl p-6 md:p-7 mt-10">
+      <h4 class="text-sm text-accent2 mb-2 font-semibold">最终评价</h4>
+      <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+        这份 system prompt 代表了<strong class="text-gray-800 dark:text-gray-200">当前 AI Agent 工程实践的高水准</strong>。它的核心优势在于：
+        (1) 通过大量反模式约束对抗 LLM 的统计偏差；(2) 完善的验证管线确保交付质量；
+        (3) 上下文管理机制支持长对话场景；(4) 工具链设计遵循单一职责 + 组合原则。
+        主要的权衡是 prompt 体量较大（~422 行），对 LLM 的指令遵循能力要求极高。
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+// Theme toggle
+const html = document.documentElement;
+const toggle = document.getElementById('themeSwitch');
+const sunIcon = document.getElementById('sunIcon');
+const moonIcon = document.getElementById('moonIcon');
+
+function applyTheme(dark) {
+  if (dark) {
+    html.classList.add('dark');
+    sunIcon.classList.add('hidden');
+    moonIcon.classList.remove('hidden');
+  } else {
+    html.classList.remove('dark');
+    sunIcon.classList.remove('hidden');
+    moonIcon.classList.add('hidden');
+  }
+  localStorage.setItem('theme', dark ? 'dark' : 'light');
+}
+
+// Init from system preference or saved
+const saved = localStorage.getItem('theme');
+if (saved === 'light') {
+  toggle.checked = true;
+  applyTheme(false);
+} else if (saved === 'dark') {
+  toggle.checked = false;
+  applyTheme(true);
+} else {
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  toggle.checked = !prefersDark;
+  applyTheme(prefersDark);
+}
+
+toggle.addEventListener('change', () => {
+  applyTheme(!toggle.checked);
+});
+
+// Side nav active state
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('#sideNav a');
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      navLinks.forEach(link => link.classList.remove('bg-accent', 'scale-125'));
+      const id = entry.target.id;
+      const activeLink = document.querySelector(`#sideNav a[href="#${id}"]`);
+      if (activeLink) activeLink.classList.add('bg-accent', 'scale-125');
+    }
+  });
+}, { threshold: 0.3, rootMargin: '-100px 0px -50% 0px' });
+
+sections.forEach(section => observer.observe(section));
+
+// Smooth scroll
+navLinks.forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    const target = document.querySelector(link.getAttribute('href'));
+    if (target) target.scrollIntoView({ behavior: 'smooth' });
+  });
+});
+</script>
+
+</body>
+</html>
